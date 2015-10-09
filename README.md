@@ -31,7 +31,7 @@ delim = CsvSniffer.detect_delimiter("/path/to/some_data.csv") #=> ";"
 is_quote_enclosed = CsvSniffer.is_quote_enclosed?("/path/to/some_data.csv") #=> False
 ```
 
-See [`test.rb`](test.rb) for more examples.
+See [`test_csv_sniffer.rb`](test/test_csv_sniffer.rb) for more examples.
 
 
 ## Tests
@@ -39,6 +39,9 @@ See [`test.rb`](test.rb) for more examples.
 ```
 $ ruby test.rb
 ```
+
+## To Do
+- Header detection
 
 ## License
 
