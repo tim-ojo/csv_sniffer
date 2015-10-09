@@ -4,14 +4,14 @@ class CsvSniffer
     # Reads the first line of the csv and returns true if the line starts and ends with " or '
     def self.is_quote_enclosed?(filepath)
       line = File.open(filepath, &:readline)
-      line.chomp!
+      line.chomp!.strip!
       return line.start_with?('"') && line.end_with?('"') || line.start_with?("'") && line.end_with?("'")
     end
 
     def self.get_quote_char(filepath)
       if is_quote_enclosed?(filepath)
         line = File.open(filepath, &:readline)
-        line.chomp!
+        line.chomp!.strip!
         return line[0]
       else
         return nil
@@ -28,7 +28,7 @@ class CsvSniffer
 
       if is_quote_enclosed?(filepath)
         line = File.open(filepath, &:readline)
-        line.chomp!
+        line.chomp!.strip!
         m = /["'].+?["']([,|;\t])/.match(line)
         if (m)
           return m[1]
