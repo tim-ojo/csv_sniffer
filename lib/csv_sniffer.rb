@@ -5,7 +5,7 @@ class CsvSniffer
     def self.is_quote_enclosed?(filepath)
       line = File.open(filepath, &:readline)
       line.chomp!
-      return l line.start_with?('"') && line.end_with?('"') || line.start_with?("'") && line.end_with?("'")
+      return line.start_with?('"') && line.end_with?('"') || line.start_with?("'") && line.end_with?("'")
     end
 
     # If the csv is quote enclosed then just get the delimiter after the first cell. Otherwise...
