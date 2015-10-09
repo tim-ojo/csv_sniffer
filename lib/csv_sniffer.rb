@@ -8,6 +8,16 @@ class CsvSniffer
       return line.start_with?('"') && line.end_with?('"') || line.start_with?("'") && line.end_with?("'")
     end
 
+    def self.get_quote_char(filepath)
+      if is_quote_enclosed?(filepath)
+        line = File.open(filepath, &:readline)
+        line.chomp!
+        return line[0]
+      else
+        return nil
+      end
+    end
+
     # If the csv is quote enclosed then just get the delimiter after the first cell. Otherwise...
     # Get the first line and count how many of the possible delimiters are present. If there is >1 of one of the
     # delimiters and 0 of the others then, then we pick the max. If there are more than 0 of any of the others then
