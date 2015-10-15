@@ -89,14 +89,110 @@ class CsvSniffer
 
       # Favor "\t" and "|" over ","
       if (maxFreq == freqOfPossibleDelims[1])
-        return "\t"
+        return '\t'
       elsif (maxFreq == freqOfPossibleDelims[3])
         return "|"
       else
-        return [",", "\t", ";", "|"][maxFreqIndex]
+        return [",", '\t', ";", "|"][maxFreqIndex]
       end
     end
 
+    # Heuristically detects whether or not the csv file uses the first line as a header
+    #
+    # Example:
+    #   CsvSniffer.has_header?("path/to/file")
+    #   =>  false
+    #
+    # Arguments:
+    #   filepath: (String)
+
+    def self.has_header?(filepath)
+      # Creates a dictionary of types of data in each column. If any
+      # column is of a single type (say, integers), *except* for the first
+      # row, then the first row is presumed to be labels. If the type
+      # can't be determined, it is assumed to be a string in which case
+      # the length of the string is the determining factor: if all of the
+      # rows except for the first are the same length, it's a header.
+      # Finally, a 'vote' is taken at the end for each column, adding or
+      # subtracting from the likelihood of the first row being a header.
+      delim = detect_delimiter(filepath)
+      if (delim == "\\t")
+        delim = "\t"
+      end
+
+      headerRow = nil
+      lineCount = 0
+      columnTypes = Hash.new
+      File.foreach(filepath) do |line|
+        if (!headerRow) # assume the first row is a header
+          headerRow = line.split(delim)
+
+          headerRow.each_index do |colIndex|
+            columnTypes[colIndex] = nil
+          end
+          next
+        end
+
+        lineCount += 1
+        break if lineCount == 50
+
+        row = line.split(delim)
+        columnTypes.each_key do |colIndex|
+          thisColType = nil
+          if (row[colIndex].strip.to_i.to_s == row[colIndex])
+            thisColType = Integer
+          elsif (row[colIndex].strip.to_f.to_s == row[colIndex])
+            thisColType = Float
+          else
+            # fallback to the length of the string
+            thisColType = row[colIndex].strip.length
+          end
+
+          if (thisColType != columnTypes[colIndex])
+            if (columnTypes[colIndex] == nil)
+              # add new column type
+              columnTypes[colIndex] = thisColType
+            else
+              # type is inconsistent, remove from consideration
+              columnTypes[colIndex] = nil
+            end
+          end
+
+        end # end iterate through each row column to determine columnType
+      end # end iterate through each row
+
+      # finally, compare results against first row and "vote" on whether its a header
+      hasHeader = 0
+      columnTypes.each do |colIndex, colVal|
+        if colVal.class == NilClass
+          # ignore
+        elsif (colVal.class != Class) # it's a length
+          if (headerRow[colIndex].strip.length != colVal)
+            hasHeader += 1
+          else
+            hasHeader -= 1
+          end
+        else
+          # determine the type of the header and compare it to the type in the Hash
+          # if the type is the same then vote down otherwise vote up
+          if headerRow[colIndex].strip.to_i.to_s == headerRow[colIndex]
+            if colVal == Integer
+              hasHeader -= 1
+            else
+              hasHeader += 1
+            end
+          elsif headerRow[colIndex].strip.to_f.to_s == headerRow[colIndex]
+            if colVal == Float
+              hasHeader -= 1
+            else
+              hasHeader += 1
+            end
+          end
+        end # end type comparison voting branch
+      end # end voting loop
+
+      return hasHeader > 0
+    end
 
     def self.max_delim_when_others_are_zero (line)
       freqOfPossibleDelims = get_freq_of_possible_delims(line)
