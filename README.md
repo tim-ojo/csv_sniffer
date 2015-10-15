@@ -1,6 +1,6 @@
 # CSV Sniffer
 
-CSV Sniffer is intended to provide utilities that will allow a user heuristically detect the delimiter character in use, whether the values in the CSV file are quote enclosed, whether the file contains a header, and more. The library is intended to detect information to be used as configuration inputs for CSV parsers. For delimiter detection the following delimiters are currently supported `[",", "\t", "|", ";"]`
+CSV Sniffer is a set of functions that allow a user heuristically detect the delimiter character in use, whether the values in the CSV file are quote enclosed, whether the file contains a header, and more. The library is intended to detect information to be used as configuration inputs for CSV parsers. For delimiter detection the following delimiters are currently supported `[",", "\t", "|", ";"]`
 
 To ensure high performance and a low memory footprint, the library uses as little information as needed to make accurate decisions. Contributors are welcome to
 improve the algorithms in use.
@@ -14,7 +14,7 @@ $ gem install csv_sniffer
 
 ## Usage
 
-Given a `some_data.csv` file:
+Given a `some_file.csv` file:
 
 ```csv
 Name;Phone
@@ -27,8 +27,9 @@ Detection usage is as follows:
 ```rb
 require "csv_sniffer"
 
-delim = CsvSniffer.detect_delimiter("/path/to/some_data.csv") #=> ";"
-is_quote_enclosed = CsvSniffer.is_quote_enclosed?("/path/to/some_data.csv") #=> False
+delim = CsvSniffer.detect_delimiter("/path/to/some_file.csv") #=> ";"
+is_quote_enclosed = CsvSniffer.is_quote_enclosed?("/path/to/some_file.csv") #=> false
+has_header = CsvSniffer.has_header?("/path/to/some_file.csv") #=> true
 ```
 
 See [`test_csv_sniffer.rb`](test/test_csv_sniffer.rb) for more examples.
@@ -37,11 +38,9 @@ See [`test_csv_sniffer.rb`](test/test_csv_sniffer.rb) for more examples.
 ## Tests
 
 ```
-$ ruby test.rb
+$ rake test
 ```
 
-## To Do
-- Header detection
 
 ## License
 
