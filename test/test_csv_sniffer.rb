@@ -19,6 +19,7 @@ class CsvSnifferTest < Minitest::Test
   @@file3 = Tempfile.new('file3')
   @@file3.puts "John Doe;555-123-4567;Good\tdude"
   @@file3.puts "Jane C. Doe;555-000-1234   ; Great gal"
+  @@file3.puts "John Smith;555-999-1234;Don't know about him"
   @@file3.rewind
 
   @@file4 = Tempfile.new('file4')
@@ -32,30 +33,35 @@ class CsvSnifferTest < Minitest::Test
   @@file5.rewind
 
   @@file6 = Tempfile.new('file6')
-  @@file6.puts 'Doe, John|555-123-4567'
-  @@file6.puts 'Doe, Jane C. |555-000-1234'
+  @@file6.puts 'Name|Phone No.|Age'
+  @@file6.puts 'Doe, John|555-123-4567|31'
+  @@file6.puts 'Doe, Jane C. |555-000-1234|30'
   @@file6.rewind
 
   def test_file1
     assert_equal ",", CsvSniffer.detect_delimiter(@@file1.path)
     assert_equal false, CsvSniffer.is_quote_enclosed?(@@file1.path)
     assert_equal nil, CsvSniffer.get_quote_char(@@file1.path)
+    assert_equal true, CsvSniffer.has_header?(@@file1.path)
   end
 
   def test_file2
     assert_equal "|", CsvSniffer.detect_delimiter(@@file2.path)
     assert_equal true, CsvSniffer.is_quote_enclosed?(@@file2.path)
     assert_equal "'", CsvSniffer.get_quote_char(@@file2.path)
+    assert_equal true, CsvSniffer.has_header?(@@file2.path)
   end
 
   def test_file3
     assert_equal ";", CsvSniffer.detect_delimiter(@@file3.path)
     assert_equal false, CsvSniffer.is_quote_enclosed?(@@file3.path)
+    assert_equal false, CsvSniffer.has_header?(@@file3.path)
   end
 
   def test_file4
-    assert_equal "\\t", CsvSniffer.detect_delimiter(@@file4.path)
+    assert_equal '\t', CsvSniffer.detect_delimiter(@@file4.path)
     assert_equal nil, CsvSniffer.get_quote_char(@@file4.path)
+    assert_equal false, CsvSniffer.has_header?(@@file4.path)
   end
 
   def test_file5
@@ -66,6 +72,7 @@ class CsvSnifferTest < Minitest::Test
 
   def test_file6
     assert_equal "|", CsvSniffer.detect_delimiter(@@file6.path)
+    assert_equal true, CsvSniffer.has_header?(@@file6.path)
   end
 
 end
