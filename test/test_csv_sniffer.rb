@@ -38,6 +38,9 @@ class CsvSnifferTest < Minitest::Test
   @@file6.puts 'Doe, Jane C. |555-000-1234|30'
   @@file6.rewind
 
+  @@file7 = Tempfile.new('file7')
+  @@file7.rewind
+
   def test_file1
     assert_equal ",", CsvSniffer.detect_delimiter(@@file1.path)
     assert_equal false, CsvSniffer.is_quote_enclosed?(@@file1.path)
@@ -75,4 +78,9 @@ class CsvSnifferTest < Minitest::Test
     assert_equal true, CsvSniffer.has_header?(@@file6.path)
   end
 
+  def test_file7
+    assert_equal false, CsvSniffer.has_header?(@@file7.path)
+    assert_equal nil, CsvSniffer.get_quote_char(@@file7.path)
+    assert_equal ",", CsvSniffer.detect_delimiter(@@file7.path)
+  end
 end
