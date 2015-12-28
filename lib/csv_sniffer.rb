@@ -11,9 +11,13 @@ class CsvSniffer
     #   filepath: (String)
 
     def self.is_quote_enclosed?(filepath)
-      line = File.open(filepath, &:readline)
-      line.chomp!.strip!
-      return line.start_with?('"') && line.end_with?('"') || line.start_with?("'") && line.end_with?("'")
+      begin
+        line = File.open(filepath, &:readline)
+        line.chomp!.strip!
+        return line.start_with?('"') && line.end_with?('"') || line.start_with?("'") && line.end_with?("'")
+      rescue EOFError
+        false
+      end
     end
 
 
@@ -27,12 +31,16 @@ class CsvSniffer
     #   filepath: (String)
 
     def self.get_quote_char(filepath)
-      if is_quote_enclosed?(filepath)
-        line = File.open(filepath, &:readline)
-        line.chomp!.strip!
-        return line[0]
-      else
-        return nil
+      begin
+        if is_quote_enclosed?(filepath)
+          line = File.open(filepath, &:readline)
+          line.chomp!.strip!
+          return line[0]
+        else
+          return nil
+        end
+      rescue EOFError
+        nil
       end
     end
 
@@ -75,8 +83,12 @@ class CsvSniffer
       end
 
       # If I got here I'm going to pick the default by counting the delimiters on the first line and returning the max
-      line = File.open(filepath, &:readline)
-      freqOfPossibleDelims = get_freq_of_possible_delims(line)
+      begin
+        line = File.open(filepath, &:readline)
+        freqOfPossibleDelims = get_freq_of_possible_delims(line)
+      rescue EOFError
+        freqOfPossibleDelims = [0,-1,-1,-1]
+      end
 
       maxFreq = 0
       maxFreqIndex = 0
