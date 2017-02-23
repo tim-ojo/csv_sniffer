@@ -12,7 +12,7 @@ class CsvSniffer
 
     def self.is_quote_enclosed?(filepath)
       begin
-        line = File.open(filepath, &:readline)
+        line = File.open(filepath, binmode: 'rt', encoding: 'bom|utf-8:utf-8', &:readline)
         line.chomp!.strip!
         return line.start_with?('"') && line.end_with?('"') || line.start_with?("'") && line.end_with?("'")
       rescue EOFError
@@ -33,7 +33,7 @@ class CsvSniffer
     def self.get_quote_char(filepath)
       begin
         if is_quote_enclosed?(filepath)
-          line = File.open(filepath, &:readline)
+          line = File.open(filepath, binmode: 'rt', encoding: 'bom|utf-8:utf-8', &:readline)
           line.chomp!.strip!
           return line[0]
         else
@@ -63,7 +63,7 @@ class CsvSniffer
       # to the comma. Unless that delimeter's count is equal to the tab or pipe delimiter's count. In that case we return \t or |
 
       if is_quote_enclosed?(filepath)
-        line = File.open(filepath, &:readline)
+        line = File.open(filepath, binmode: 'rt', encoding: 'bom|utf-8:utf-8', &:readline)
         line.chomp!.strip!
         m = /["'].+?["']([,|;\t])/.match(line)
         if (m)
@@ -72,7 +72,7 @@ class CsvSniffer
       end
 
       lineCount = 0
-      File.foreach(filepath) do |line|
+      File.foreach(filepath, binmode: 'rt', encoding: 'bom|utf-8:utf-8') do |line|
         detectedDelim = max_delim_when_others_are_zero(line)
         if detectedDelim != '0' #=> '0' is a sentinel value that indicates no delim found
           return detectedDelim
@@ -84,7 +84,7 @@ class CsvSniffer
 
       # If I got here I'm going to pick the default by counting the delimiters on the first line and returning the max
       begin
-        line = File.open(filepath, &:readline)
+        line = File.open(filepath, binmode: 'rt', encoding: 'bom|utf-8:utf-8', &:readline)
         freqOfPossibleDelims = get_freq_of_possible_delims(line)
       rescue EOFError
         freqOfPossibleDelims = [0,-1,-1,-1]
@@ -128,14 +128,12 @@ class CsvSniffer
       # Finally, a 'vote' is taken at the end for each column, adding or
       # subtracting from the likelihood of the first row being a header.
       delim = detect_delimiter(filepath)
-      if (delim == "\\t")
-        delim = "\t"
-      end
+      delim = "\t" if delim == "\\t"
 
       headerRow = nil
       lineCount = 0
       columnTypes = Hash.new
-      File.foreach(filepath) do |line|
+      File.foreach(filepath, binmode: 'rt', encoding: 'bom|utf-8:utf-8') do |line|
         if (!headerRow) # assume the first row is a header
           headerRow = line.split(delim)
 
