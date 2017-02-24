@@ -1,5 +1,94 @@
+require 'csv'
+
 # This class contains functions to heuristically decipher certain information from a CSV file
 class CsvSniffer
+
+    # Reads the first line of the csv and returns the endline characters used
+    #
+    # Example:
+    #   CsvSniffer.detect_endline("path/to/file")
+    #   =>  "\r"
+    #
+    # Arguments:
+    #   filepath: (String)
+
+    def self.detect_endline(filepath)
+      begin
+        file = File.open(filepath, binmode: 'rt', encoding: 'bom|utf-8:utf-8')
+        # Prevent large files with \r ending from reading the entire contents by limiting
+        file.readline(10_000)[/[\r\n]+/]
+      rescue EOFError
+        $/
+      end
+    end
+
+    # Provides block iteration over lines in the csv file
+    #
+    # Example:
+    #   CsvSniffer.lines("path/to/file").map { |line| line[0] }
+    #   =>  ['f', 'i', 'r', 's', 't', ' ', 'c', 'h', 'a', 'r']
+    #
+    # Arguments:
+    #   filepath: (String)
+
+    def self.lines(filepath, &block)
+      File.foreach(filepath, detect_endline(filepath), binmode: 'rt', encoding: 'bom|utf-8:utf-8', &block)
+    end
+
+    # Reads the first line of the csv. Returns nil if no first line exists
+    #
+    # Example:
+    #   CsvSniffer.detect_endline("path/to/file")
+    #   =>  "first line"
+    #
+    # Arguments:
+    #   filepath: (String)
+
+    def self.first_line(filepath, cleaned = true)
+      begin
+        line = lines(filepath).first
+        if line && cleaned
+          line.chomp!
+          line.strip!
+        end
+
+        line
+      rescue EOFError
+        nil
+      end
+    end
+
+    # Provides block iteration over lines in the csv file as rows
+    #
+    # Example:
+    #   CsvSniffer.rows("path/to/file").map { |line| line[0] }
+    #   =>  ['first', 'cell', 'of', 'each', 'row']
+    #
+    # Arguments:
+    #   filepath: (String)
+
+    def self.rows(filepath, &block)
+      delim = detect_delimiter(filepath)
+      endline = detect_endline(filepath)
+      CSV.foreach(filepath, row_sep: endline, col_sep: delim, encoding: 'bom|utf-8:utf-8', &block)
+    end
+
+    # Reads the first line of the csv as a row. Returns [] if no first row exists
+    #
+    # Example:
+    #   CsvSniffer.detect_endline("path/to/file")
+    #   =>  ["first", "line"]
+    #
+    # Arguments:
+    #   filepath: (String)
+
+    def self.first_row(filepath, cleaned = true)
+      begin
+        rows(filepath).first || []
+      rescue EOFError
+        []
+      end
+    end
 
     # Reads the first line of the csv and returns true if the line starts and ends with " or '
     #
@@ -11,13 +100,8 @@ class CsvSniffer
     #   filepath: (String)
 
     def self.is_quote_enclosed?(filepath)
-      begin
-        line = File.open(filepath, &:readline)
-        line.chomp!.strip!
-        return line.start_with?('"') && line.end_with?('"') || line.start_with?("'") && line.end_with?("'")
-      rescue EOFError
-        false
-      end
+      line = first_line(filepath)
+      return line && line.start_with?('"') && line.end_with?('"') || line && line.start_with?("'") && line.end_with?("'")
     end
 
 
@@ -31,16 +115,11 @@ class CsvSniffer
     #   filepath: (String)
 
     def self.get_quote_char(filepath)
-      begin
-        if is_quote_enclosed?(filepath)
-          line = File.open(filepath, &:readline)
-          line.chomp!.strip!
-          return line[0]
-        else
-          return nil
-        end
-      rescue EOFError
-        nil
+      if is_quote_enclosed?(filepath)
+        line = first_line(filepath)
+        return line && line.strip[0]
+      else
+        return nil
       end
     end
 
@@ -54,7 +133,7 @@ class CsvSniffer
     # Arguments:
     #   filepath: (String)
 
-    def self.detect_delimiter (filepath)
+    def self.detect_delimiter(filepath)
       # If the csv is quote enclosed then just get the delimiter after the first cell. Otherwise...
       # Get the first line and count how many of the possible delimiters are present. If there is >1 of one of the
       # delimiters and 0 of the others then, then we pick the max. If there are more than 0 of any of the others then
@@ -63,8 +142,8 @@ class CsvSniffer
       # to the comma. Unless that delimeter's count is equal to the tab or pipe delimiter's count. In that case we return \t or |
 
       if is_quote_enclosed?(filepath)
-        line = File.open(filepath, &:readline)
-        line.chomp!.strip!
+        line = first_line(filepath)
+        return false unless line
         m = /["'].+?["']([,|;\t])/.match(line)
         if (m)
           return m[1]
@@ -72,7 +151,7 @@ class CsvSniffer
       end
 
       lineCount = 0
-      File.foreach(filepath) do |line|
+      lines(filepath) do |line|
         detectedDelim = max_delim_when_others_are_zero(line)
         if detectedDelim != '0' #=> '0' is a sentinel value that indicates no delim found
           return detectedDelim
@@ -83,12 +162,9 @@ class CsvSniffer
       end
 
       # If I got here I'm going to pick the default by counting the delimiters on the first line and returning the max
-      begin
-        line = File.open(filepath, &:readline)
-        freqOfPossibleDelims = get_freq_of_possible_delims(line)
-      rescue EOFError
-        freqOfPossibleDelims = [0,-1,-1,-1]
-      end
+      line = self.first_line(filepath)
+      freqOfPossibleDelims = get_freq_of_possible_delims(line) if line
+      freqOfPossibleDelims = [0,-1,-1,-1] unless line
 
       maxFreq = 0
       maxFreqIndex = 0
@@ -101,11 +177,11 @@ class CsvSniffer
 
       # Favor "\t" and "|" over ","
       if (maxFreq == freqOfPossibleDelims[1])
-        return '\t'
+        return "\t"
       elsif (maxFreq == freqOfPossibleDelims[3])
         return "|"
       else
-        return [",", '\t', ";", "|"][maxFreqIndex]
+        return [",", "\t", ";", "|"][maxFreqIndex]
       end
     end
 
@@ -128,27 +204,21 @@ class CsvSniffer
       # Finally, a 'vote' is taken at the end for each column, adding or
       # subtracting from the likelihood of the first row being a header.
       delim = detect_delimiter(filepath)
-      if (delim == "\\t")
-        delim = "\t"
-      end
 
       headerRow = nil
-      lineCount = 0
       columnTypes = Hash.new
-      File.foreach(filepath) do |line|
+
+      rows(filepath).each_with_index do |row, lineCount|
+        break if lineCount == 50
+
         if (!headerRow) # assume the first row is a header
-          headerRow = line.split(delim)
+          headerRow = row
 
           headerRow.each_index do |colIndex|
             columnTypes[colIndex] = nil
           end
-          next
         end
 
-        lineCount += 1
-        break if lineCount == 50
-
-        row = line.split(delim)
         columnTypes.each_key do |colIndex|
           thisColType = nil
           if (row[colIndex].strip.to_i.to_s == row[colIndex])
@@ -206,7 +276,7 @@ class CsvSniffer
       return hasHeader > 0
     end
 
-    def self.max_delim_when_others_are_zero (line)
+    def self.max_delim_when_others_are_zero(line)
       freqOfPossibleDelims = get_freq_of_possible_delims(line)
 
       maxFreq = 0
@@ -221,15 +291,15 @@ class CsvSniffer
       end
 
       if zeroCount >= 3
-        return [',', '\t', ';', '|'][maxFreqIndex]
+        return [',', "\t", ';', '|'][maxFreqIndex]
       else
         return '0' #=> '0' is a sentinel value that indicates no delim found
       end
     end
 
 
-    def self.get_freq_of_possible_delims (line)
-      freqOfPossibleDelims = Array.new(4) #=> [0 = ','] [1 = '\t'] [2 = ';'] [3 = '|']
+    def self.get_freq_of_possible_delims(line)
+      freqOfPossibleDelims = Array.new(4) #=> [0 = ','] [1 = "\t"] [2 = ';'] [3 = '|']
       freqOfPossibleDelims[0] = line.count ","
       freqOfPossibleDelims[1] = line.count "\t"
       freqOfPossibleDelims[2] = line.count ";"
