@@ -42,29 +42,35 @@ class CsvSnifferTest < Minitest::Test
   @@file7 = Tempfile.new('file7', binmode: 'wt+')
   @@file7.rewind
 
-  @@file8 = Tempfile.new('file5', binmode: 'wt+')
+  @@file8 = Tempfile.new('file8', binmode: 'wt+')
   @@file8.puts '"Name"|"Phone"|"Age"'
   @@file8.puts '"Doe,,,,,, John"|"555-123-4567"|"31"'
   @@file8.puts '"Jane C. Doe"|"555-000-1234\t"|"30"'
   @@file8.rewind
 
-  @@file9 = Tempfile.new('file5', binmode: 'wt+', encoding: 'utf-16le')
+  @@file9 = Tempfile.new('file9', binmode: 'wt+', encoding: 'utf-16le')
   @@file9.puts UTF_16_BOM + '"Name"|"Phone"|"Age"'.encode('utf-16le')
   @@file9.puts '"Doe,,,,,, John"|"555-123-4567"|"31"'
   @@file9.puts '"Jane C. Doe"|"555-000-1234\t"|"30"'
   @@file9.rewind
 
-  @@file10 = Tempfile.new('file5', binmode: 'wt+', encoding: 'utf-16le')
+  @@file10 = Tempfile.new('file10', binmode: 'wt+', encoding: 'utf-16le')
   @@file10.puts UTF_16_BOM + 'Name;Phone;Age'.encode('utf-16le')
   @@file10.puts '"Doe John";"555-123-4567";31'
   @@file10.puts '"Jane C. Doe";"555-000-1234\t";30'
   @@file10.rewind
+
+  @@file11 = Tempfile.new('file11', binmode: 'wt+')
+  @@file11.print "\"Name\",\"Number\"\rJohn ;;;;;;;; Doe,555-123-4567\r"
+  @@file11.flush
+  @@file11.rewind
 
   def test_file1
     assert_equal ",", CsvSniffer.detect_delimiter(@@file1.path)
     assert_equal false, CsvSniffer.is_quote_enclosed?(@@file1.path)
     assert_equal nil, CsvSniffer.get_quote_char(@@file1.path)
     assert_equal true, CsvSniffer.has_header?(@@file1.path)
+    assert_equal "Name,Number", CsvSniffer.first_line(@@file1.path)
   end
 
   def test_file2
@@ -122,5 +128,13 @@ class CsvSnifferTest < Minitest::Test
     assert_equal false, CsvSniffer.is_quote_enclosed?(@@file10.path)
     assert_equal nil, CsvSniffer.get_quote_char(@@file10.path)
     assert_equal true, CsvSniffer.has_header?(@@file10.path)
+  end
+
+  def test_file11
+    assert_equal "\r", CsvSniffer.detect_endline(@@file11.path)
+    assert_equal ",", CsvSniffer.detect_delimiter(@@file11.path)
+    assert_equal true, CsvSniffer.is_quote_enclosed?(@@file11.path)
+    assert_equal '"', CsvSniffer.get_quote_char(@@file11.path)
+    assert_equal true, CsvSniffer.has_header?(@@file11.path)
   end
 end
