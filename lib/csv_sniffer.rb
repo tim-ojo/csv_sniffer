@@ -1,3 +1,5 @@
+require 'csv'
+
 # This class contains functions to heuristically decipher certain information from a CSV file
 class CsvSniffer
 
@@ -53,6 +55,38 @@ class CsvSniffer
         line
       rescue EOFError
         nil
+      end
+    end
+
+    # Provides block iteration over lines in the csv file as rows
+    #
+    # Example:
+    #   CsvSniffer.rows("path/to/file").map { |line| line[0] }
+    #   =>  ['first', 'cell', 'of', 'each', 'row']
+    #
+    # Arguments:
+    #   filepath: (String)
+
+    def self.rows(filepath, &block)
+      delim = detect_delimiter(filepath)
+      endline = detect_endline(filepath)
+      CSV.foreach(filepath, row_sep: endline, col_sep: delim, encoding: 'bom|utf-8:utf-8', &block)
+    end
+
+    # Reads the first line of the csv as a row. Returns [] if no first row exists
+    #
+    # Example:
+    #   CsvSniffer.detect_endline("path/to/file")
+    #   =>  ["first", "line"]
+    #
+    # Arguments:
+    #   filepath: (String)
+
+    def self.first_row(filepath, cleaned = true)
+      begin
+        rows(filepath).first || []
+      rescue EOFError
+        []
       end
     end
 
@@ -143,11 +177,11 @@ class CsvSniffer
 
       # Favor "\t" and "|" over ","
       if (maxFreq == freqOfPossibleDelims[1])
-        return '\t'
+        return "\t"
       elsif (maxFreq == freqOfPossibleDelims[3])
         return "|"
       else
-        return [",", '\t', ";", "|"][maxFreqIndex]
+        return [",", "\t", ";", "|"][maxFreqIndex]
       end
     end
 
@@ -170,26 +204,21 @@ class CsvSniffer
       # Finally, a 'vote' is taken at the end for each column, adding or
       # subtracting from the likelihood of the first row being a header.
       delim = detect_delimiter(filepath)
-      delim = "\t" if delim == "\\t"
 
       headerRow = nil
-      lineCount = 0
       columnTypes = Hash.new
 
-      lines(filepath) do |line|
+      rows(filepath).each_with_index do |row, lineCount|
+        break if lineCount == 50
+
         if (!headerRow) # assume the first row is a header
-          headerRow = line.split(delim)
+          headerRow = row
 
           headerRow.each_index do |colIndex|
             columnTypes[colIndex] = nil
           end
-          next
         end
 
-        lineCount += 1
-        break if lineCount == 50
-
-        row = line.split(delim)
         columnTypes.each_key do |colIndex|
           thisColType = nil
           if (row[colIndex].strip.to_i.to_s == row[colIndex])
@@ -262,7 +291,7 @@ class CsvSniffer
       end
 
       if zeroCount >= 3
-        return [',', '\t', ';', '|'][maxFreqIndex]
+        return [',', "\t", ';', '|'][maxFreqIndex]
       else
         return '0' #=> '0' is a sentinel value that indicates no delim found
       end
@@ -270,7 +299,7 @@ class CsvSniffer
 
 
     def self.get_freq_of_possible_delims(line)
-      freqOfPossibleDelims = Array.new(4) #=> [0 = ','] [1 = '\t'] [2 = ';'] [3 = '|']
+      freqOfPossibleDelims = Array.new(4) #=> [0 = ','] [1 = "\t"] [2 = ';'] [3 = '|']
       freqOfPossibleDelims[0] = line.count ","
       freqOfPossibleDelims[1] = line.count "\t"
       freqOfPossibleDelims[2] = line.count ";"
